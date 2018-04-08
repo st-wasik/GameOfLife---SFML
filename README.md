@@ -13,22 +13,22 @@ Compile project and run.
 
 ## 4.Game
 ### 4.1 Settings
-All of these settings can be changed <u>only</u> before compilation. **This will be changed in future.** <br/>
+All of these settings can be changed <i>only</i> before compilation. **This will be changed in future.** <br/>
 4.1.1 To run program in fullscreen you have to use #define fullscreen in GameOfLife.cpp. <br/>
 4.1.2 To hide cells outlines you have to use #define no_cell_outline in GameOfLife.cpp. <br/>
 4.1.3 To change the game rule you have to call game.setRule("...") in main.cpp. The basic Conway's Game of Life rule is 23/3. To set this rule simply call game.setRule("23/3"). More rules can be found on: https://pl.wikipedia.org/wiki/Gra_w_%C5%BCycie#Modyfikacje_gry_w_%C5%BCycie<br/>
 
 ### 4.2 Key binding
-* Esc - Close program
-* Num+ - Make simulation faster
-* Num- - Make simulation slower
-* Space - Full speed of simulation 
-* Num* - Make random cells alive
-* Num/ - Kill all life
-* Num0 - Highlight central cell
-* Enter - Simulation start/stop
-* Mouse:Left - Make selected cell alive
-* Mouse:Right - Kill selected cell
+* <pre>Esc           - Close program</pre>
+* <pre>Num+          - Make simulation faster</pre>
+* <pre>Num-          - Make simulation slower</pre>
+* <pre>Space         - Full speed of simulation</pre>
+* <pre>Num*          - Make random cells alive</pre>
+* <pre>Num/          - Kill all life</pre>
+* <pre>Num0          - Highlight central cell</pre>
+* <pre>Enter         - Simulation start/stop</pre>
+* <pre>Mouse:Left    - Make selected cell alive</pre>
+* <pre>Mouse:Right   - Kill selected cell</pre>
 
 ## 5.License
 ### GNU GPL v3.0

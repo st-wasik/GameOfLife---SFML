@@ -179,7 +179,7 @@ void GameOfLife::resizeArrays()
 void GameOfLife::updateArrays()
 {
 
-	// update only after time..
+	// update only after time interval...
 	if (clock.getElapsedTime().asMilliseconds() > timeLimit && gameRun)
 	{////////////////////////////// warunki itd.
 		zero(ile);

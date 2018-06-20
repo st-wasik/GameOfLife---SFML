@@ -1,6 +1,8 @@
 ﻿#include "GameOfLife.h"
 #include "iostream"
 #include "algorithm"
+#include "thread"
+#include "mutex"
 // possible defines: fullscreen, no_cell_outline
 #define no_cell_outline
 #define fullscreen
@@ -30,13 +32,13 @@ template <typename T> std::ostream& operator<<(std::ostream& stream, std::vector
 }
 
 GameOfLife::GameOfLife() :
-	blockSize{ 6 },
+	blockSize{ 9 },
 #ifdef fullscreen
 	window{ sf::VideoMode(sf::VideoMode::getDesktopMode()), "GameOfLife", sf::Style::Fullscreen },
 	height{ (const int)sf::VideoMode::getDesktopMode().width / blockSize }, width{ (const int)sf::VideoMode::getDesktopMode().height / blockSize },
 #else
 	window{ sf::VideoMode(blockSize*height, blockSize*width), "GameOfLife", sf::Style::Close },
-	height{ 30 }, width{ 30 },
+height{ 121 }, width{ 99 },
 #endif
 	gameRun{ false }, timeLimit{ 100 }, highlightCenter{ false },
 	Yellow1{ 51, 51, 0 }, Yellow2{ 128, 128, 0 }, Yellow3{ 255, 255, 0 },
@@ -44,6 +46,7 @@ GameOfLife::GameOfLife() :
 {
 	icon.loadFromFile("gol.png");
 	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
+	window.setVerticalSyncEnabled(true);
 	resizeArrays();
 
 	//set cells rectangles
@@ -76,7 +79,7 @@ void GameOfLife::run()
 			}
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Add)
 			{
-				timeLimit += 100;
+				timeLimit -= 30;
 				if (timeLimit < 0)
 				{
 					timeLimit = 1;
@@ -84,7 +87,7 @@ void GameOfLife::run()
 			}
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Subtract)
 			{
-				timeLimit -= 100;
+				timeLimit += 30;
 				if (timeLimit < 0)
 				{
 					timeLimit = 1;
@@ -181,8 +184,11 @@ void GameOfLife::updateArrays()
 	{////////////////////////////// warunki itd.
 		zero(ile);
 
-		for (std::size_t i = 0; i < height; i++)
-			for (std::size_t j = 0; j < width; j++)
+#pragma omp parallel for //
+		for (signed int i = 0; i < height; i++)
+		{
+#pragma omp parallel for //
+			for (signed int j = 0; j < width; j++)
 			{
 				// inform neighbors if current cell is alive
 				if ((*currentArray)[i][j] != 0)
@@ -217,6 +223,182 @@ void GameOfLife::updateArrays()
 					ile[i][j]--;
 				}
 			}
+		}
+		//survive or revive (or die)
+
+#pragma omp parallel for //
+		for (signed int i = 0; i < height; i++)
+		{
+			for (std::size_t j = 0; j < width; j++)
+			{
+				//survive
+				if ((*currentArray)[i][j] == true)
+				{
+					//5678/35678
+					if (std::any_of(surviveRule.begin(), surviveRule.end(), [&](short x) {return x == ile[i][j]; }))
+					{
+						(*newArray)[i][j] = true;
+					}
+					else
+					{
+						(*newArray)[i][j] = false;
+					}
+				}
+				//revive
+				else
+				{
+					if (std::any_of(reviveRule.begin(), reviveRule.end(), [&](short x) {return x == ile[i][j]; }))
+					{
+						(*newArray)[i][j] = true;
+					}
+					else
+					{
+						(*newArray)[i][j] = false;
+					}
+				}
+			}
+		}
+		std::swap(newArray, currentArray);
+		clock.restart();
+	}
+}
+
+void GameOfLife::threadedUpdateArrays()
+{
+	// update only after time..
+	if (clock.getElapsedTime().asMilliseconds() > timeLimit && gameRun)
+	{////////////////////////////// warunki itd.
+		zero(ile);
+		std::mutex m;
+
+		std::thread t1([&]() {
+			for (std::size_t i = 0; i < height; i += 4)
+			{
+				for (std::size_t j = 0; j < width; j++)
+				{
+					// inform neighbors if current cell is alive
+					if ((*currentArray)[i][j] != 0)
+					{
+						int Ax, Ay, Zx, Zy;
+						Ax = i - 1; Ay = j - 1;
+						Zx = i + 1; Zy = j + 1;
+
+						if (Ax < 0) Ax = 0;
+						if (Ay < 0) Ay = 0;
+						if (Zx >= height) Zx = height - 1;
+						if (Zy >= width) Zy = width - 1;
+						std::lock_guard<std::mutex> lock(m);
+						//inform neighbors that current cell is alive
+						for (std::size_t x = Ax; x <= Zx; x++)
+						{
+							for (std::size_t y = Ay; y <= Zy; y++)
+							{
+								ile[x][y]++;
+							}
+						}
+						ile[i][j]--;
+					}
+				}
+			}
+		});
+		std::thread t2([&]() {
+			for (std::size_t i = 1; i < height; i += 4)
+			{
+				for (std::size_t j = 0; j < width; j++)
+				{
+					// inform neighbors if current cell is alive
+					if ((*currentArray)[i][j] != 0)
+					{
+						int Ax, Ay, Zx, Zy;
+						Ax = i - 1; Ay = j - 1;
+						Zx = i + 1; Zy = j + 1;
+
+						if (Ax < 0) Ax = 0;
+						if (Ay < 0) Ay = 0;
+						if (Zx >= height) Zx = height - 1;
+						if (Zy >= width) Zy = width - 1;
+						std::lock_guard<std::mutex> lock(m);
+
+						//inform neighbors that current cell is alive
+						for (std::size_t x = Ax; x <= Zx; x++)
+						{
+							for (std::size_t y = Ay; y <= Zy; y++)
+							{
+								ile[x][y]++;
+							}
+						}
+						ile[i][j]--;
+					}
+				}
+			}
+		});
+		std::thread t3([&]() {
+			for (std::size_t i = 2; i < height; i += 4)
+			{
+				for (std::size_t j = 0; j < width; j++)
+				{
+					std::lock_guard<std::mutex> lock(m);
+					// inform neighbors if current cell is alive
+					if ((*currentArray)[i][j] != 0)
+					{
+						int Ax, Ay, Zx, Zy;
+						Ax = i - 1; Ay = j - 1;
+						Zx = i + 1; Zy = j + 1;
+
+						if (Ax < 0) Ax = 0;
+						if (Ay < 0) Ay = 0;
+						if (Zx >= height) Zx = height - 1;
+						if (Zy >= width) Zy = width - 1;
+
+						//inform neighbors that current cell is alive
+						for (std::size_t x = Ax; x <= Zx; x++)
+						{
+							for (std::size_t y = Ay; y <= Zy; y++)
+							{
+								ile[x][y]++;
+							}
+						}
+						ile[i][j]--;
+					}
+				}
+			}
+		});
+		std::thread t4([&]() {
+			for (std::size_t i = 3; i < height; i += 4)
+			{
+				for (std::size_t j = 0; j < width; j++)
+				{
+					std::lock_guard<std::mutex> lock(m);
+					// inform neighbors if current cell is alive
+					if ((*currentArray)[i][j] != 0)
+					{
+						int Ax, Ay, Zx, Zy;
+						Ax = i - 1; Ay = j - 1;
+						Zx = i + 1; Zy = j + 1;
+
+						if (Ax < 0) Ax = 0;
+						if (Ay < 0) Ay = 0;
+						if (Zx >= height) Zx = height - 1;
+						if (Zy >= width) Zy = width - 1;
+
+						//inform neighbors that current cell is alive
+						for (std::size_t x = Ax; x <= Zx; x++)
+						{
+							for (std::size_t y = Ay; y <= Zy; y++)
+							{
+								ile[x][y]++;
+							}
+						}
+						ile[i][j]--;
+					}
+				}
+			}
+		});
+
+		t1.join();
+		t2.join();
+		t3.join();
+		t4.join();
 
 		//survive or revive (or die)
 		for (std::size_t i = 0; i < height; i++)

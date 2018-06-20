@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <atomic>
 #include <SFML/Graphics.hpp>
 
 class GameOfLife
@@ -35,6 +36,7 @@ private:
 
 	void resizeArrays();
 	void updateArrays();
+	void threadedUpdateArrays();
 	void updateCellsColors();
 	void updateDisplay();
 	void updateMouse();
